@@ -243,6 +243,10 @@ docker-compose.yaml
 *.crt
 *.csr
 
+# Firebase service account keys
+*firebase-adminsdk*.json
+*service-account*.json
+
 # Configuration files with sensitive data
 config.json
 secrets.json
