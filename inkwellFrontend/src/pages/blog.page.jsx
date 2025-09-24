@@ -28,9 +28,11 @@ const BlogPage = () => {
         .then(p => p.json())
         .then(data => {
             if (data.blog) {
+                console.log('Blog data received:', data.blog);
+                console.log('Author ID:', data.blog.author._id);
                 setBlog(data.blog);
-                getSimilarBlogs(data.blog.tags);
-                getBlogComments();
+                getSimilarBlogs(data.blog.tags, data.blog.author._id);
+                getBlogComments(data.blog._id);
             }
         })
         .catch(err => {
@@ -38,8 +40,10 @@ const BlogPage = () => {
         });
     };
 
-    const getSimilarBlogs = (tags) => {
-        fetch(import.meta.env.VITE_SERVER_DOMAIN + `/search-blogs?tag=${tags[0]}&author=${blog?.author._id}`, {
+    const getSimilarBlogs = (tags, authorId) => {
+        console.log('getSimilarBlogs called with:', { tags, authorId });
+        // Fetch similar blogs based on tags and exclude current author
+        fetch(import.meta.env.VITE_SERVER_DOMAIN + `/search-blogs?tag=${tags[0]}&author=${authorId}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json"
@@ -56,8 +60,8 @@ const BlogPage = () => {
         });
     };
 
-    const getBlogComments = () => {
-        fetch(import.meta.env.VITE_SERVER_DOMAIN + `/get-blog-comments?blog_id=${blog_id}&skip=${totalParentCommentsLoaded}`, {
+    const getBlogComments = (blogObjectId) => {
+        fetch(import.meta.env.VITE_SERVER_DOMAIN + `/get-blog-comments?blog_id=${blogObjectId}&skip=${totalParentCommentsLoaded}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json"
