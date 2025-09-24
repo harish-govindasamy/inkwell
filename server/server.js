@@ -511,45 +511,65 @@ server.get("/is-liked-by-user", verifyJWT, (req, res) => {
 
 // Add Comment API
 server.post("/add-comment", verifyJWT, (req, res) => {
-    let { _id, comment, blog_author, replying_to } = req.body;
+    let { _id, comment, replying_to } = req.body;
 
     if (!comment.length) {
         return res.status(403).json({ error: "Write something to leave a comment" });
     }
 
-    let commentObj = {
-        blog_id: _id,
-        blog_author,
-        comment,
-        commented_by: req.user
-    };
-
-    if (replying_to) {
-        commentObj.parent = replying_to;
-        commentObj.isReply = true;
-    }
-
-    new Comment(commentObj).save().then(async (commentDoc) => {
-        let { comment, _id, commented_by, commentedAt, children } = commentDoc;
-
-        Blog.findOneAndUpdate(
-            { _id },
-            {
-                $push: { comments: _id },
-                $inc: {
-                    "activity.total_comments": 1,
-                    "activity.total_parent_comments": replying_to ? 0 : 1
-                }
+    // First, get the blog to find the blog_author
+    Blog.findById(_id)
+        .then(blog => {
+            if (!blog) {
+                return res.status(404).json({ error: "Blog not found" });
             }
-        ).then(() => {
-            return res.status(200).json({ comment });
+
+            let commentObj = {
+                blog_id: _id,
+                blog_author: blog.author,
+                comment,
+                commented_by: req.user
+            };
+
+            console.log("Creating comment with blog_id:", _id, "(type:", typeof _id, ")");
+
+            if (replying_to) {
+                commentObj.parent = replying_to;
+                commentObj.isReply = true;
+            }
+
+            new Comment(commentObj).save().then(async (commentDoc) => {
+                let { comment, _id: commentId, commented_by, commentedAt, children } = commentDoc;
+
+                Blog.findOneAndUpdate(
+                    { _id },
+                    {
+                        $push: { comments: commentId },
+                        $inc: {
+                            "activity.total_comments": 1,
+                            "activity.total_parent_comments": replying_to ? 0 : 1
+                        }
+                    }
+                ).then(() => {
+                    return res.status(200).json({ comment });
+                }).catch(err => {
+                    return res.status(500).json({ error: err.message });
+                });
+            }).catch(err => {
+                return res.status(500).json({ error: err.message });
+            });
+        })
+        .catch(err => {
+            return res.status(500).json({ error: err.message });
         });
-    });
 });
 
 // Get Blog Comments API
 server.get("/get-blog-comments", (req, res) => {
     let { blog_id, skip = 0 } = req.query;
+
+    console.log("Getting comments for blog_id:", blog_id);
+    console.log("Skip:", skip);
 
     Comment.find({ blog_id, isReply: false })
         .populate("commented_by", "personal_info.username personal_info.profile_img -_id")
@@ -558,9 +578,11 @@ server.get("/get-blog-comments", (req, res) => {
         .skip(skip)
         .limit(2)
         .then(comments => {
+            console.log("Found comments:", comments.length);
             return res.status(200).json({ comments });
         })
         .catch(err => {
+            console.log("Error fetching comments:", err.message);
             return res.status(500).json({ error: err.message });
         });
 });
