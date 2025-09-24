@@ -1,0 +1,25 @@
+GET http://localhost:3000/upload-image
+
+### Test the upload endpoint with a POST request
+POST http://localhost:3000/upload-image
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="image"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Alternative: Test if server is running
+GET http://localhost:3000/
+
+### Test other endpoints that work with GET
+POST http://localhost:3000/signup
+Content-Type: application/json
+
+{
+  "fullname": "Test User",
+  "email": "test@example.com",
+  "password": "Test123"
+}
