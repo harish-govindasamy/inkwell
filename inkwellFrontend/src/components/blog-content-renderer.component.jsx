@@ -132,6 +132,91 @@ const BlogContentRenderer = ({ content }) => {
                         <img key={i} src={block.data.file?.url || block.data.url} alt={block.data.caption} className="w-full my-4" />
                     );
                 }
+                if (block.type === "linkTool") {
+                    const { link, meta } = block.data;
+                    
+                    // If no meta data available, render simple link
+                    if (!meta || (!meta.title && !meta.description && !meta.image)) {
+                        try {
+                            const domain = new URL(link).hostname;
+                            return (
+                                <div key={i} className="my-6 p-4 border border-grey rounded-lg bg-grey/30 hover:bg-grey/50 transition-colors">
+                                    <a 
+                                        href={link} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block no-underline"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                                                <i className="fi fi-rr-link text-dark-grey"></i>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-lg font-medium text-black mb-1 hover:text-purple transition-colors">
+                                                    {domain}
+                                                </p>
+                                                <p className="text-sm text-dark-grey break-all">
+                                                    {link}
+                                                </p>
+                                            </div>
+                                            <i className="fi fi-rr-arrow-up-right-from-square text-dark-grey"></i>
+                                        </div>
+                                    </a>
+                                </div>
+                            );
+                        } catch (e) {
+                            // Fallback for invalid URLs
+                            return (
+                                <div key={i} className="my-6 p-4 border border-grey rounded-lg bg-grey/30">
+                                    <a 
+                                        href={link} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-purple hover:text-purple/80 underline break-all"
+                                    >
+                                        {link}
+                                    </a>
+                                </div>
+                            );
+                        }
+                    }
+                    
+                    // Rich link preview with meta data
+                    return (
+                        <div key={i} className="my-6 border border-grey rounded-lg overflow-hidden hover:border-dark-grey transition-colors">
+                            <a 
+                                href={link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block no-underline"
+                            >
+                                {meta?.image && (
+                                    <div className="aspect-video w-full overflow-hidden">
+                                        <img 
+                                            src={meta.image.url} 
+                                            alt={meta.title || "Link preview"} 
+                                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                        />
+                                    </div>
+                                )}
+                                <div className="p-4">
+                                    <h3 className="text-xl font-semibold text-black mb-2 hover:text-purple transition-colors line-clamp-2">
+                                        {meta?.title || new URL(link).hostname}
+                                    </h3>
+                                    {meta?.description && (
+                                        <p className="text-dark-grey text-base leading-6 mb-3 line-clamp-3">
+                                            {meta.description}
+                                        </p>
+                                    )}
+                                    <div className="flex items-center gap-2 text-sm text-dark-grey/70">
+                                        <span>{new URL(link).hostname}</span>
+                                        <i className="fi fi-rr-arrow-up-right-from-square"></i>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    );
+                }
                 // Fallback for unknown block types
                 if (block.data && block.data.text) {
                     return (
