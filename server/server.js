@@ -10,7 +10,6 @@ import Blog from './Schema/Blog.js';
 import Comment from './Schema/Comment.js';
 import Notification from './Schema/Notification.js';
 import admin from "firebase-admin"
-import serviceAccountKey from './inkwell-5ae8a-firebase-adminsdk-fbsvc-c3efe159cb.json';
 import { getAuth } from 'firebase-admin/auth';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import multer from 'multer';
@@ -32,9 +31,27 @@ const r2 = new S3Client({
 const server = express();
 const PORT = 3000;
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccountKey)
-})
+// Initialize Firebase Admin SDK with environment variables (optional)
+let firebaseApp = null;
+if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    try {
+        firebaseApp = admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+            })
+        });
+        console.log('Firebase Admin SDK initialized successfully');
+    } catch (error) {
+        console.log('Firebase Admin SDK initialization failed:', error.message);
+        console.log('Google OAuth will not work - but server will continue running');
+        firebaseApp = null;
+    }
+} else {
+    console.log('Firebase Admin SDK not initialized - Google OAuth will not work');
+    console.log('Missing environment variables: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY');
+}
 
 let emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/; // regex for email
 let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/; // regex for password
@@ -46,6 +63,13 @@ server.use(cors({
 }));
 mongoose.connect(process.env.DB_LOCATION, {
     autoIndex: true,
+    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+    bufferCommands: false // Disable mongoose buffering
+}).then(() => {
+    console.log('MongoDB connected successfully');
+}).catch(err => {
+    console.error('MongoDB connection error:', err);
 })
 
 const formatDatatoSend = (user) => {
@@ -141,6 +165,10 @@ server.post("/signin", (req, res) => {
 });
 
 server.post('/google-auth', async (req, res) => {
+    if (!firebaseApp) {
+        return res.status(500).json({ "error": "Firebase not initialized. Google OAuth not available." });
+    }
+    
     let { access_token } = req.body;
     getAuth()
         .verifyIdToken(access_token)
@@ -253,9 +281,12 @@ const verifyJWT = (req, res, next) => {
 
     jwt.verify(token, process.env.SECRET_ACCESS_KEY, (err, user) => {
         if (err) {
+            console.error("JWT verification error:", err);
             return res.status(403).json({ error: 'Invalid or expired token' });
         }
-        req.user = user;
+        // Extract the user ID from the JWT payload
+        req.user = user.id;
+        console.log("JWT verified, user ID:", user.id);
         next();
     });
 };
@@ -263,6 +294,14 @@ const verifyJWT = (req, res, next) => {
 // Blog Creation API
 server.post("/create-blog", verifyJWT, (req, res) => {
     let { title, banner, content, tags, des, draft } = req.body;
+    
+    // Debug logging
+    console.log("Creating blog request received:");
+    console.log("User ID:", req.user);
+    console.log("Title:", title);
+    console.log("Tags:", tags);
+    console.log("Description:", des);
+    console.log("Draft:", draft);
 
     if (!title.length) {
         return res.status(403).json({ error: "You must provide a title to publish the blog" });
@@ -296,19 +335,45 @@ server.post("/create-blog", verifyJWT, (req, res) => {
         draft: Boolean(draft)
     });
 
-    blog.save().then(async (blog) => {
-        let incrementVal = draft ? 0 : 1;
+    blog.save().then(async (savedBlog) => {
+        try {
+            let incrementVal = draft ? 0 : 1;
+            console.log("Blog saved successfully, updating user stats...");
 
-        await User.findOneAndUpdate(
-            { _id: req.user },
-            {
-                $inc: { "account_info.total_posts": incrementVal },
-                $push: { "blogs": blog._id }
+            // Use Promise.all for parallel execution instead of await for better performance
+            if (incrementVal > 0) {
+                await Promise.all([
+                    User.findOneAndUpdate(
+                        { _id: req.user },
+                        { $inc: { "account_info.total_posts": incrementVal } }
+                    ),
+                    User.findOneAndUpdate(
+                        { _id: req.user },
+                        { $push: { "blogs": savedBlog._id } }
+                    )
+                ]);
+            } else {
+                // For drafts, only add to blogs array
+                await User.findOneAndUpdate(
+                    { _id: req.user },
+                    { $push: { "blogs": savedBlog._id } }
+                );
             }
-        );
 
-        return res.status(200).json({ blog_id });
+            return res.status(200).json({ 
+                blog_id: savedBlog.blog_id,
+                message: draft ? "Draft saved successfully" : "Blog published successfully"
+            });
+        } catch (userUpdateErr) {
+            console.error("User update error:", userUpdateErr);
+            // Blog was saved, but user update failed - still return success
+            return res.status(200).json({ 
+                blog_id: savedBlog.blog_id,
+                warning: "Blog created but user stats update failed"
+            });
+        }
     }).catch(err => {
+        console.error("Blog creation error:", err);
         return res.status(500).json({ error: err.message });
     });
 });

@@ -52,20 +52,43 @@ const BlogEditor = () => {
           return toast.error("Write a blog title before publishing");
       }
 
+      // Add validation for required publishing fields
+      if (!blogBannerRef.current.src || blogBannerRef.current.src.includes('blog banner.png')) {
+          return toast.error("Please upload a banner image before publishing");
+      }
+
       let loadingToast = toast.loading("Publishing your blog...");
 
       editorJSInstance.current.save().then((content) => {
           if (content.blocks.length) {
+              // Generate a basic description from content
+              let description = "";
+              if (content.blocks.length > 0) {
+                  const firstTextBlock = content.blocks.find(block => 
+                      block.type === 'paragraph' || block.type === 'header'
+                  );
+                  if (firstTextBlock && firstTextBlock.data.text) {
+                      description = firstTextBlock.data.text.substring(0, 200);
+                  }
+              }
+
+              // Add default tags if none provided
+              const defaultTags = ["blog", "writing"];
+
               let blogObj = {
                   title: blogTitleRef.current.value,
                   banner: blogBannerRef.current.src,
                   content,
-                  tags: [],
-                  des: "",
+                  tags: defaultTags,
+                  des: description || "A new blog post",
                   draft: false
               };
 
               publishBtnRef.current.classList.add("opacity-50");
+
+              // Add timeout to prevent hanging requests
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
               fetch(import.meta.env.VITE_SERVER_DOMAIN + "/create-blog", {
                   method: "POST",
@@ -73,9 +96,16 @@ const BlogEditor = () => {
                       "Content-Type": "application/json",
                       "Authorization": `Bearer ${access_token}`
                   },
-                  body: JSON.stringify(blogObj)
+                  body: JSON.stringify(blogObj),
+                  signal: controller.signal
               })
-              .then(p => p.json())
+              .then(response => {
+                  clearTimeout(timeoutId);
+                  if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+                  return response.json();
+              })
               .then(data => {
                   if (data.blog_id) {
                       toast.dismiss(loadingToast);
@@ -83,12 +113,23 @@ const BlogEditor = () => {
                       setTimeout(() => {
                           location.href = "/";
                       }, 500);
+                  } else if (data.error) {
+                      throw new Error(data.error);
                   }
               })
               .catch(err => {
+                  clearTimeout(timeoutId);
                   toast.dismiss(loadingToast);
-                  toast.error("Error occurred while publishing");
                   publishBtnRef.current.classList.remove("opacity-50");
+                  
+                  if (err.name === 'AbortError') {
+                      toast.error("Request timed out. Please try again.");
+                  } else if (err.message) {
+                      toast.error(`Error: ${err.message}`);
+                  } else {
+                      toast.error("Error occurred while publishing. Please check your connection.");
+                  }
+                  console.error("Publishing error:", err);
               });
           } else {
               toast.dismiss(loadingToast);
