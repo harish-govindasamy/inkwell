@@ -524,14 +524,22 @@ server.post("/add-comment", verifyJWT, (req, res) => {
                 return res.status(404).json({ error: "Blog not found" });
             }
 
+            // Convert _id to ObjectId to ensure proper storage
+            let blogObjectId;
+            try {
+                blogObjectId = new mongoose.Types.ObjectId(_id);
+            } catch (error) {
+                return res.status(400).json({ error: "Invalid blog ID format" });
+            }
+
             let commentObj = {
-                blog_id: _id,
+                blog_id: blogObjectId,
                 blog_author: blog.author,
                 comment,
                 commented_by: req.user
             };
 
-            console.log("Creating comment with blog_id:", _id, "(type:", typeof _id, ")");
+            console.log("Creating comment with blog_id:", _id, "(ObjectId:", blogObjectId, ")");
 
             if (replying_to) {
                 commentObj.parent = replying_to;
@@ -542,7 +550,7 @@ server.post("/add-comment", verifyJWT, (req, res) => {
                 let { comment, _id: commentId, commented_by, commentedAt, children } = commentDoc;
 
                 Blog.findOneAndUpdate(
-                    { _id },
+                    { _id: blogObjectId },
                     {
                         $push: { comments: commentId },
                         $inc: {
@@ -571,7 +579,15 @@ server.get("/get-blog-comments", (req, res) => {
     console.log("Getting comments for blog_id:", blog_id);
     console.log("Skip:", skip);
 
-    Comment.find({ blog_id, isReply: false })
+    // Convert blog_id to ObjectId for proper MongoDB query
+    let blogObjectId;
+    try {
+        blogObjectId = new mongoose.Types.ObjectId(blog_id);
+    } catch (error) {
+        return res.status(400).json({ error: "Invalid blog ID format" });
+    }
+
+    Comment.find({ blog_id: blogObjectId, isReply: false })
         .populate("commented_by", "personal_info.username personal_info.profile_img -_id")
         .populate("children")
         .sort({ "commentedAt": -1 })
