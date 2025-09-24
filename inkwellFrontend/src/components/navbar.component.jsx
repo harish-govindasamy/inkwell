@@ -45,7 +45,7 @@ const Navbar = () => {
                     {
                         access_token ?
                             <>
-                                <Link to="/dashboard/notification">
+                                <Link to="/notifications">
                                     <button className='w-12 h-12 rounded-full bg-grey relative hover:bg-black/10'>
                                         <i className="fi fi-rr-bell text-2xl black mt-1"></i>
                                     </button>
