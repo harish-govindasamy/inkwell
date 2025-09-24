@@ -804,3 +804,4 @@ server.post("/mark-notification", verifyJWT, (req, res) => {
 server.listen(PORT, () => {
     console.log(`Server is running -> ${PORT}`);
 })
+

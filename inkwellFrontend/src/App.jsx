@@ -32,9 +32,6 @@ const App = () => {
         <UserContext.Provider value={{ userAuth, setUserAuth }}>
             <Routes>
                 <Route path="/editor" element={<Editor />} />
-                <Route path="/blog/:blog_id" element={<BlogPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/user/:user_id" element={<ProfilePage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/edit-profile" element={<EditProfile />} />
                 <Route path="/change-password" element={<ChangePassword />} />
@@ -44,6 +41,9 @@ const App = () => {
                     <Route index element={<Home />} />
                     <Route path="signin" element={<UserAuthForm type="sign-in" />} />
                     <Route path="signup" element={<UserAuthForm type="sign-up" />} />
+                    <Route path="blog/:blog_id" element={<BlogPage />} />
+                    <Route path="search" element={<SearchPage />} />
+                    <Route path="user/:user_id" element={<ProfilePage />} />
                 </Route>
                 <Route path="*" element={<PageNotFound />} />
             </Routes>

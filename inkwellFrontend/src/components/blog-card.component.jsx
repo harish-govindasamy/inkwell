@@ -80,7 +80,7 @@ const BlogCard = ({ content, author }) => {
                 <p className="my-3 text-xl leading-7 max-sm:hidden md:max-[1100px]:hidden line-clamp-2">{content.des}</p>
 
                 <div className="flex gap-4 mt-7">
-                    <Tags tags={content.tags} />
+                    <Tags tags={content.tags} insideLink={true} />
                     <button 
                         className={`ml-3 flex items-center gap-2 ${isLiked ? "text-red-500" : "text-dark-grey"}`}
                         onClick={handleLike}
