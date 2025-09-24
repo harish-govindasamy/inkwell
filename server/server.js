@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import User from './Schema/User.js'; // schema below
 import admin from "firebase-admin"
-import serviceAccountKey from './inkwell-5ae8a-firebase-adminsdk-fbsvc-c3efe159cb.json' with { type: "json" };
+import serviceAccountKey from './inkwell-5ae8a-firebase-adminsdk-fbsvc-c3efe159cb.json';
 import { getAuth } from 'firebase-admin/auth';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import multer from 'multer';
