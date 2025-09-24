@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { UserContext } from "../App";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
@@ -11,6 +11,7 @@ import UserCard from "../components/usercard.component";
 const SearchPage = () => {
     const { userAuth: { access_token } } = useContext(UserContext);
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [blogs, setBlogs] = useState(null);
     const [users, setUsers] = useState(null);
     const [query, setQuery] = useState("");
@@ -64,8 +65,10 @@ const SearchPage = () => {
     const handleSearch = (e) => {
         e.preventDefault();
         if (query.trim()) {
-            searchBlogs(query);
-            searchUsers(query);
+            // Update URL to reflect the search
+            navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+            searchBlogs(query.trim());
+            searchUsers(query.trim());
         }
     };
 

@@ -28,11 +28,11 @@ const BlogPage = () => {
         .then(p => p.json())
         .then(data => {
             if (data.blog) {
-                console.log('Blog data received:', data.blog);
-                console.log('Author ID:', data.blog.author._id);
                 setBlog(data.blog);
                 getSimilarBlogs(data.blog.tags, data.blog.author._id);
                 getBlogComments(data.blog._id);
+            } else {
+                toast.error("Blog not found");
             }
         })
         .catch(err => {
